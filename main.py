@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.models import todo  # Import models to register them
+from app.models import todo, user  # Import models to register them
 from app.routers import todo as todo_router
+from app.routers import auth as auth_router
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -32,7 +33,9 @@ def root():
 
 
 # ===== Include routers =====
+app.include_router(auth_router.router, prefix=settings.API_V1_PREFIX)
 app.include_router(todo_router.router, prefix=settings.API_V1_PREFIX)
+
 
 
 if __name__ == "__main__":

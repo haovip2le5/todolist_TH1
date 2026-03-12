@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.core.database import Base
 from app.models.todo import TodoModel
+from app.models.user import UserModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

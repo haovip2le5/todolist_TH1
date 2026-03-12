@@ -30,6 +30,7 @@ class Todo(BaseModel):
     title: str
     description: Optional[str]
     is_done: bool
+    owner_id: int
     created_at: datetime
     updated_at: datetime
 

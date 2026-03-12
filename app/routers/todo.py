@@ -6,7 +6,9 @@ from app.schemas.todo import (
 )
 from app.repositories.todo import TodoRepository
 from app.services.todo import TodoService
+from app.models.user import UserModel
 from app.core.database import get_db
+from app.routers.auth import get_optional_current_user
 
 router = APIRouter(prefix="/todos", tags=["todos"])
 
@@ -18,9 +20,13 @@ def get_todo_service(db: Session = Depends(get_db)) -> TodoService:
 
 
 @router.post("", response_model=Todo)
-def create_todo(todo: TodoCreate, service: TodoService = Depends(get_todo_service)):
+def create_todo(
+    todo: TodoCreate,
+    current_user: UserModel = Depends(get_optional_current_user),
+    service: TodoService = Depends(get_todo_service)
+):
     """Tạo todo mới"""
-    return service.create_todo(todo.title, todo.description, todo.is_done)
+    return service.create_todo(current_user.id, todo.title, todo.description, todo.is_done)
 
 
 @router.get("", response_model=TodoListResponse)
@@ -30,17 +36,22 @@ def get_todos(
     sort: Optional[str] = Query(None, description="Sort by: created_at, -created_at, title, -title"),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: UserModel = Depends(get_optional_current_user),
     service: TodoService = Depends(get_todo_service)
 ):
     """Lấy danh sách todos"""
-    items, total = service.get_todos(is_done, q, sort, limit, offset)
+    items, total = service.get_todos(current_user.id, is_done, q, sort, limit, offset)
     return TodoListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/{todo_id}", response_model=Todo)
-def get_todo(todo_id: int, service: TodoService = Depends(get_todo_service)):
+def get_todo(
+    todo_id: int,
+    current_user: UserModel = Depends(get_optional_current_user),
+    service: TodoService = Depends(get_todo_service)
+):
     """Lấy chi tiết todo"""
-    todo = service.get_todo_by_id(todo_id)
+    todo = service.get_todo_by_id(todo_id, current_user.id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo không tìm thấy")
     return todo
@@ -50,10 +61,11 @@ def get_todo(todo_id: int, service: TodoService = Depends(get_todo_service)):
 def update_todo(
     todo_id: int,
     todo_data: TodoUpdate,
+    current_user: UserModel = Depends(get_optional_current_user),
     service: TodoService = Depends(get_todo_service)
 ):
     """Cập nhật toàn bộ todo"""
-    todo = service.update_todo(todo_id, todo_data.title, todo_data.description, todo_data.is_done)
+    todo = service.update_todo(todo_id, current_user.id, todo_data.title, todo_data.description, todo_data.is_done)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo không tìm thấy")
     return todo
@@ -63,11 +75,12 @@ def update_todo(
 def partial_update_todo(
     todo_id: int,
     todo_data: TodoPartialUpdate,
+    current_user: UserModel = Depends(get_optional_current_user),
     service: TodoService = Depends(get_todo_service)
 ):
     """Cập nhật một phần todo"""
     update_data = todo_data.model_dump(exclude_unset=True)
-    todo = service.partial_update_todo(todo_id, **update_data)
+    todo = service.partial_update_todo(todo_id, current_user.id, **update_data)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo không tìm thấy")
     return todo
@@ -76,18 +89,23 @@ def partial_update_todo(
 @router.post("/{todo_id}/complete", response_model=Todo)
 def complete_todo(
     todo_id: int,
+    current_user: UserModel = Depends(get_optional_current_user),
     service: TodoService = Depends(get_todo_service)
 ):
     """Đánh dấu todo hoàn thành"""
-    todo = service.complete_todo(todo_id)
+    todo = service.complete_todo(todo_id, current_user.id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo không tìm thấy")
     return todo
 
 
 @router.delete("/{todo_id}")
-def delete_todo(todo_id: int, service: TodoService = Depends(get_todo_service)):
+def delete_todo(
+    todo_id: int,
+    current_user: UserModel = Depends(get_optional_current_user),
+    service: TodoService = Depends(get_todo_service)
+):
     """Xóa todo"""
-    if not service.delete_todo(todo_id):
+    if not service.delete_todo(todo_id, current_user.id):
         raise HTTPException(status_code=404, detail="Todo không tìm thấy")
     return {"message": "Xóa thành công", "id": todo_id}
